@@ -18,6 +18,8 @@ import random
 from deap import base
 from deap import creator
 from deap import tools
+from Evaluate_pool import Evaluate_pool
+
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
@@ -30,11 +32,8 @@ toolbox.register("individual", tools.initRepeat, creator.Individual,
     toolbox.attr_bool, 100)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-def evalOneMax(individual):
-    return sum(individual),
 
 # Operator registering
-toolbox.register("evaluate", evalOneMax)
 toolbox.register("mate", tools.cxTwoPoint)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
@@ -43,16 +42,15 @@ def main():
     random.seed(64)
 
     pop = toolbox.population(n=300)
-    CXPB, MUTPB, NGEN = 0.5, 0.2, 40
 
     print("Start of evolution")
 
     # Evaluate the entire population
-    fitnesses = list(map(toolbox.evaluate, pop))
-    for ind, fit in zip(pop, fitnesses):
-        ind.fitness.values = fit
+    evaluate(pop, begin_evolving)
 
-    print("  Evaluated %i individuals" % len(pop))
+def begin_evolving(pop):
+
+    CXPB, MUTPB, NGEN = 0.5, 0.2, 40
 
     # Begin the evolution
     for g in range(NGEN):
@@ -77,11 +75,7 @@ def main():
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
-
-        print("  Evaluated %i individuals" % len(invalid_ind))
+        evaluate(invalid_ind)
 
         # The population is entirely replaced by the offspring
         pop[:] = offspring
@@ -104,5 +98,29 @@ def main():
     best_ind = tools.selBest(pop, 1)[0]
     print("Best individual is %s, %s" % (best_ind, best_ind.fitness.values))
 
+
+pool = Evaluate_pool()
+
+def evaluate(children, callback = None):
+
+    pool.add_many(children)
+
+    for ind in children:
+        ind.fitness.values = evalOneMax(ind)
+
+
+
+    print("  Evaluated %i individuals" % len(children))
+
+    if callback is not None:
+        callback(children)
+
+def evalOneMax(individual):
+    return sum(individual),
+
+
+
 if __name__ == "__main__":
     main()
+
+
