@@ -18,7 +18,8 @@ import random
 from deap import base
 from deap import creator
 from deap import tools
-from Evaluate_pool import Evaluate_pool
+
+from Evaluate_pool import Evaluate_pool, Individual, Rating
 
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -38,6 +39,9 @@ toolbox.register("mate", tools.cxTwoPoint)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
+Rating.timeout = 60 #seconds
+Individual.num_evaluations = 5 #seconds
+
 def main():
     random.seed(64)
 
@@ -50,7 +54,7 @@ def main():
 
 def begin_evolving(pop):
 
-    CXPB, MUTPB, NGEN = 0.5, 0.2, 40
+    CXPB, MUTPB, NGEN = 0.5, 0.2, 4
 
     # Begin the evolution
     for g in range(NGEN):
