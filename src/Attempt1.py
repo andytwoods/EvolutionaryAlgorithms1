@@ -40,7 +40,7 @@ toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 Rating.timeout = 60 #seconds
-Individual.num_evaluations = 5 #seconds
+Individual.default_num_evaluations = 5 #seconds
 
 def main():
     random.seed(64)
