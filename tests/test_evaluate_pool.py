@@ -1,5 +1,5 @@
 from unittest import TestCase
-from Evaluate_pool import Rating, Individual, Evaluate_pool
+from EvaluationManager import Rating, Individual, EvaluationManager
 from random import random
 
 class TestRating(TestCase):
@@ -90,7 +90,7 @@ class TestEvaluatePool(TestCase):
 
 
         params = {'minimum_finished': 3, "num_evals":5}
-        eval = Evaluate_pool(callback, params)
+        eval = EvaluationManager(callback, params)
 
         items_to_evaluate = 4
         items = list()
@@ -157,7 +157,7 @@ class TestEvalWithRandData(TestCase):
         minimum_finished = items_to_evaluate + 1  # we dont want this to ever occur
         num_eval = 5
 
-        eval = Evaluate_pool(None, {'minimum_finished': minimum_finished, 'num_evals': num_eval})
+        eval = EvaluationManager(None, {'minimum_finished': minimum_finished, 'num_evals': num_eval})
 
         def test_data():
             mock = []
