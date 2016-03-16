@@ -1,18 +1,17 @@
 import threading
 
 
-class Evaluate_pool(object):
-
-
+class EvaluationManager(object):
 
     def __init__(self, callback, params):
         self._add_defaults(params)
         self.params = params
         self.callback = callback
+        self.id_counter = 0
+
         self.pool = list()
         self.potentially_tested_pool = list()
         self.tested_pool = list()
-        self.id_counter = 0
 
     @staticmethod
     def _add_defaults(params):
@@ -23,10 +22,11 @@ class Evaluate_pool(object):
 
         check_add('minimum_finished', 5)
         check_add('num_evals', 5)
-        check_add('timeout',60)
+        check_add('timeout', 60)
 
     def add(self, item):
-        self.pool.append(Individual(item, self.id_counter, self._callback_individual, self.params))
+        individual = Individual(item, self.id_counter, self._callback_individual, self.params)
+        self.pool.append(individual)
         self.id_counter += 1
 
     def add_many(self, items):
@@ -34,25 +34,35 @@ class Evaluate_pool(object):
             self.add(item)
 
     def _callback_individual(self, individual):
+        if individual.state is State.FINISHED:
+            self.potentially_tested_pool.remove(individual)
+            self.tested_pool.append(individual)
 
-        self.potentially_tested_pool.remove(individual)
-        self.tested_pool.append(individual)
+            if len(self.tested_pool) >= self.params.get('minimum_finished'):
+                test_these = list()
+                while len(self.tested_pool) > 0:
+                    test_these.append(self.tested_pool.pop(0))
+                self.callback(test_these)
 
-        if len(self.tested_pool) >= self.params.get('minimum_finished'):
-            test_these = list()
-            while len(self.tested_pool) > 0:
-                test_these.append(self.tested_pool.pop(0))
-            self.callback(test_these)
+        elif individual.stage is State.POOL:
+            self.potentially_tested_pool.remove(individual)
+            self.pool.append(individual)
+
 
     def get_item(self, rater):
 
         if len(self.pool) is 0:
             return None
 
-        item = self.pool[0]
-        info = item.rating_request(rater)
+        for item in self.pool:
+            info = item.rating_request(rater)
+            if info is not None:
+                break
 
-        if item.potentially_finished is True:
+        if info is None:
+            return None
+
+        if item.state is State.POTENTIALLY_TESTED:
             self.pool.remove(item)
             self.potentially_tested_pool.append(item)
 
@@ -68,6 +78,12 @@ class Evaluate_pool(object):
         raise ValueError('the item was not found in the pool. Devel error.')
 
 
+class State:
+    POOL = 1
+    POTENTIALLY_TESTED = 2
+    FINISHED = 3
+
+
 class Individual(object):
 
     def __init__(self, item, individual_id, callback, params):
@@ -77,21 +93,28 @@ class Individual(object):
         self.to_be_rated = []
         self.has_been_rated = []
         self.in_limbo = []
-        self.potentially_finished = False
         self.data = None
-        self.finished = False
         self.params = params
+        self.state = State.POOL
 
         self.new_rating(self.params.get('num_evals'))
 
     def rating_request(self, rater):
+
+        for potential in self.has_been_rated:
+            if potential.rater is rater:
+                return None
+
+        for potential in self.in_limbo:
+            if potential.rater is rater:
+                return None
 
         rating = self.to_be_rated.pop(0)
         rating.start(rater, self.fail_callback_rating)
         self.in_limbo.insert(0, rating)
 
         if len(self.to_be_rated) == 0:
-            self.potentially_finished = True
+            self.state = State.POTENTIALLY_TESTED
 
         return {'id': self.id, 'rating_num': rating.rating_num, 'data': 'self.item'}
 
@@ -101,7 +124,9 @@ class Individual(object):
             self.to_be_rated.append(Rating(rating_num, self.params))
 
     def fail_callback_rating(self):
+        self.state = State.POOL
         self.new_rating(1)
+
 
     def rated(self, score, rating_num):
 
@@ -113,7 +138,7 @@ class Individual(object):
                 self.has_been_rated.append(rating)
 
                 if len(self.has_been_rated) >= self.params.get('num_evals'):
-                    self.finished = True
+                    self.state = State.FINISHED
                     self.data = self.compile_data()
                     self.callback(self) #tell parent that data is collected
 

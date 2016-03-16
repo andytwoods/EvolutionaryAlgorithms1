@@ -69,8 +69,20 @@ class TestIndividual(TestCase):
         failed_rating.do_callback()
         self.assertEquals(len(ind.to_be_rated), 5)
 
+        #testing unique raters only, are allowed
+        rating_request = ind.rating_request('rater')
+        self.assertEquals(rating_request, None)
+
+        rating_request = ind.rating_request('rater2')
+        self.assertNotEquals(rating_request, None)
+
+        #testing unique raters only, are allowed
+        rating_request = ind.rating_request('rater2')
+        self.assertEquals(rating_request, None)
+
     def callback(self):
         self.assertTrue(True)
+
 
 
 
